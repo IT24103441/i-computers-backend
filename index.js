@@ -1,6 +1,5 @@
 import express from 'express'
-import mongoose from 'mongoose'
-import studentRouter from './Router/studentRouter.js'
+    import mongoose from 'mongoose'
 import userRouter from "./Router/userRouter.js";
 import { authenticate } from './middlewares/authenticate.js';
 import productRouter from "./Router/productRouter.js";
@@ -13,8 +12,6 @@ mongoose.connect(mongoDBURI).then(() => {
 app.use(express.json())
 
 app.use(authenticate)
-
-app.use('/students', studentRouter)
 app.use("/users", userRouter)
 app.use("/products", productRouter)
 
