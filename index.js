@@ -3,8 +3,11 @@ import express from 'express'
 import userRouter from "./Router/userRouter.js";
 import { authenticate } from './middlewares/authenticate.js';
 import productRouter from "./Router/productRouter.js";
+import dotenv from 'dotenv'
+
+dotenv.config()
 const app = express()
-const mongoDBURI = "mongodb+srv://Kaweesha:1234@cluster0.lpllm0w.mongodb.net/dev?appName=Cluster0"
+const mongoDBURI = process.env.MONGO_URI
 
 mongoose.connect(mongoDBURI).then(() => {
     console.log("Connected to MongoDB")

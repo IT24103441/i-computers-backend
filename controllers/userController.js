@@ -1,6 +1,9 @@
 import User from '../model/user.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 export async function createUser(req, res) {
     try {
@@ -51,7 +54,7 @@ if(isPasswordValid) {
         isBlocked: user.isBlocked,
          isEmailVerified: user.isEmailVerified,
           image: user.image
-     }, "secretKey99!!!!!");
+     }, process.env.JWT_SECRET_KEY);
     res.json({ message: "Login successful", token : token });
     
 }else {
