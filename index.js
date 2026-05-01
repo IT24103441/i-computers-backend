@@ -1,5 +1,5 @@
 import express from 'express'
-    import mongoose from 'mongoose'
+import mongoose from 'mongoose'
 import userRouter from "./Router/userRouter.js";
 import { authenticate } from './middlewares/authenticate.js';
 import productRouter from "./Router/productRouter.js";
@@ -19,10 +19,10 @@ app.use(express.json())
 
 app.use(authenticate)
 
-app.use("/users", userRouter)
-app.use("/products", productRouter)
+app.use("/api/users", userRouter)
+app.use("/api/products", productRouter)
 
 
 app.listen(3000,
-    () => {console.log("Server is running on port 3000") }
+    () => { console.log("Server is running on port 3000") }
 )  
