@@ -4,6 +4,7 @@ import userRouter from "./Router/userRouter.js";
 import { authenticate } from './middlewares/authenticate.js';
 import productRouter from "./Router/productRouter.js";
 import dotenv from 'dotenv'
+import cors from 'cors'
 
 dotenv.config()
 const app = express()
@@ -12,9 +13,12 @@ const mongoDBURI = process.env.MONGO_URI
 mongoose.connect(mongoDBURI).then(() => {
     console.log("Connected to MongoDB")
 })
+
+app.use(cors())
 app.use(express.json())
 
 app.use(authenticate)
+
 app.use("/users", userRouter)
 app.use("/products", productRouter)
 
