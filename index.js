@@ -10,9 +10,29 @@ dotenv.config()
 const app = express()
 const mongoDBURI = process.env.MONGO_URI
 
-mongoose.connect(mongoDBURI).then(() => {
-    console.log("Connected to MongoDB")
-})
+const connectDB = async () => {
+    try {
+        if (!mongoDBURI) {
+            throw new Error("MONGO_URI is not defined in .env");
+        }
+        await mongoose.connect(mongoDBURI)
+        console.log("Connected to MongoDB")
+    } catch (err) {
+        console.error("MongoDB Connection Error:", err.message)
+        console.log("Attempting fallback to In-memory MongoDB server...")
+        try {
+            const { MongoMemoryServer } = await import('mongodb-memory-server')
+            const mongoServer = await MongoMemoryServer.create()
+            const fallbackURI = mongoServer.getUri()
+            await mongoose.connect(fallbackURI)
+            console.log("Connected to Fallback In-memory MongoDB at:", fallbackURI)
+        } catch (fallbackErr) {
+            console.error("Failed to start fallback in-memory MongoDB. Please configure a valid MONGO_URI in .env:", fallbackErr.message)
+        }
+    }
+}
+
+connectDB()
 
 app.use(cors())
 app.use(express.json())
