@@ -10,14 +10,24 @@ export async function createProduct(req, res) {
         return;
     }
     try {
-        const existingProduct = await Product.findOne({ productID: req.body.productID });
+        const productId = req.body.productId || req.body.productID;
+        if (!productId) {
+            res.status(400).json({ message: "productId is required" });
+            return;
+        }
+        const existingProduct = await Product.findOne({ productId });
 
         if (existingProduct != null) {
             res.status(400).json({ message: "Product with this ID already exists" });
             return;
         }
 
-        const product = new Product(req.body);
+        const productData = {
+            ...req.body,
+            productId: productId,
+            labelledprice: req.body.labelledprice !== undefined ? req.body.labelledprice : req.body.labelledPrice
+        };
+        const product = new Product(productData);
         await product.save();
         res.json({ message: "Product created successfully" });
 
@@ -43,12 +53,13 @@ export async function getAllProducts(req, res) {
 export async function deleteProduct(req, res) {
       if(req.user != null && req.user.isAdmin) {
         try {
-            const product = await Product.findOne({ productid: req.params.productid });
+            const productId = req.params.productId || req.params.productid;
+            const product = await Product.findOne({ productId });
             if (product == null) {
                 res.status(404).json({ message: "Product not found" });
                 return;
             }
-            await Product.deleteOne({ productid: req.params.productid });
+            await Product.deleteOne({ productId });
             res.json({ message: "Product deleted successfully" });
         }catch (error) {            
             res.status(500).json({ message: error.message });
@@ -63,11 +74,12 @@ export async function deleteProduct(req, res) {
 export async function updateProduct(req, res) {
         if(req.user != null && req.user.isAdmin) {
             try {
-                if(req.body.productID != null) {
+                if (req.body.productId != null || req.body.productID != null) {
                     res.status(400).json({ message: "Product ID cannot be updated" });
                     return;
                 }
-                await Product.updateOne({ productid: req.params.productid }, req.body);
+                const productId = req.params.productId || req.params.productid;
+                await Product.updateOne({ productId }, req.body);
                 res.json({ message: "Product updated successfully" });
             }catch (error) {            
                 res.status(500).json({ message: error.message });
@@ -82,7 +94,8 @@ export async function updateProduct(req, res) {
 
 export async function getProductById(req, res) {
     try {
-        const product = await Product.findOne({ productid: req.params.productid });
+        const productId = req.params.productId || req.params.productid;
+        const product = await Product.findOne({ productId });
         if (product == null) {
             res.status(404).json({ message: "Product not found" });
             return;
