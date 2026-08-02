@@ -34,12 +34,12 @@ export async function loginUser(req, res) {
         const password = req.body.password;
 
         if (email == null || password == null) {
-            res.json({ message: "Email and password are required" });
+            res.status(400).json({ message: "Email and password are required" });
             return;
         }
         const user = await User.findOne({ email: email });
         if (user == null) {
-            res.json({ message: "User not found" });
+            res.status(404).json({ message: "User not found" });
             return;
         }
 
@@ -58,12 +58,12 @@ export async function loginUser(req, res) {
             res.json({ message: "Login successful", token: token, isAdmin: user.isAdmin });
 
         } else {
-            res.json({ message: "Invalid password" });
+            res.status(401).json({ message: "Invalid password" });
             return;
         }
 
     } catch (error) {
-        res.json({ message: error.message });
+        res.status(500).json({ message: error.message });
 
     }
 }
