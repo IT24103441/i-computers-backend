@@ -67,3 +67,35 @@ export async function loginUser(req, res) {
 
     }
 }
+
+
+export async function getUser(req,res){
+
+    if(req.user == null){
+        res.status(401).json({message : "Unauthorized"})
+        return
+    }
+
+    try{
+
+        const email = req.user.email
+
+        const user = await User.findOne( {email : email} )
+
+        if(user == null){
+            res.status(404).json({message : "User not found"})
+            return
+        }
+
+        if(user.isBlocked){
+            res.status(403).json({message : "User is blocked"})
+            return
+        }
+
+        res.json({email : user.email , firstName : user.firstName , lastName : user.lastName , isAdmin : user.isAdmin , isBlocked : user.isBlocked , isEmailVerified : user.isEmailVerified , image : user.image})
+
+
+    }catch(err){
+        res.json({message : err.message})
+    }
+}
