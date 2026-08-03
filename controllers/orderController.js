@@ -77,3 +77,91 @@ export async function createOrder(req, res) {
         res.status(500).json({ message: err.message })
     }
 }
+
+export async function getAllOrders(req,res){
+
+    if(req.user == null){
+        res.status(401).json({message : "Unauthorized"})
+        return
+    }
+
+    try{
+
+        if(req.user.isAdmin){
+
+            const pageSizeInString = req.params.pageSize||"10"
+
+            const pageNumberInString = req.params.pageNumber||"1"
+
+            const pageSize = parseInt(pageSizeInString) //10
+
+            const pageNumber = parseInt(pageNumberInString) //1
+
+            const orderCount = await Order.countDocuments()
+
+            const totalPages = Math.ceil(orderCount / pageSize)
+
+            const orders = await Order.find().sort({date : -1}).skip((pageNumber-1)*pageSize).limit(pageSize)
+
+            res.json({
+                orders : orders,
+                totalPages : totalPages,
+                totalOrders : orderCount
+            })
+
+        }else{
+
+            const pageSizeInString = req.params.pageSize||"10"
+
+            const pageNumberInString = req.params.pageNumber||"1"
+
+            const pageSize = parseInt(pageSizeInString) //10
+
+            const pageNumber = parseInt(pageNumberInString) //1
+
+            const orderCount = await Order.countDocuments({email : req.user.email})
+
+            const totalPages = Math.ceil(orderCount / pageSize)
+
+            const orders = await Order.find({email : req.user.email}).sort({date : -1}).skip((pageNumber-1)*pageSize).limit(pageSize)
+
+            res.json({
+                orders : orders,
+                totalPages : totalPages,
+                currentPage : pageNumber,
+                totalOrders : orderCount
+            })
+
+        }
+
+    }catch(err){
+        res.json({message : err.message})
+    }
+
+}
+
+export async function updateOrderStatus(req,res){
+    if(req.user == null || req.user.isAdmin == false){
+        res.status(401).json({message : "Unauthorized"})
+        return
+    }
+
+    try{
+
+        const order = await Order.findOne( {orderId : req.params.orderId} )
+
+        if(order == null){
+            res.status(404).json({message : "Order not found"})
+            return
+        }
+
+        await Order.updateOne(
+            {orderId : req.params.orderId},
+            {status : req.body.status}
+        )
+        res.json({message : "Order status updated successfully"})
+
+    }catch(err){
+        res.json({message : err.message})
+    }
+}
