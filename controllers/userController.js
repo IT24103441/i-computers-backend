@@ -2,6 +2,7 @@ import User from '../model/user.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv'
+import axios from "axios"
 
 dotenv.config()
 
@@ -142,5 +143,71 @@ export async function updateProfile(req,res){
 
     }catch(err){
         res.json({message : err.message})
+    }
+}
+
+export async function googleLogin(req, res) {
+    try {
+        const token = req.body.accessToken || req.body.token || req.body.googleToken;
+        if (!token) {
+            return res.status(400).json({ message: "Google access token is required" });
+        }
+
+        const googleRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        if (!googleRes.ok) {
+            return res.status(400).json({ message: "Invalid or expired Google token" });
+        }
+
+        const googleUser = await googleRes.json();
+        const email = googleUser.email;
+
+        if (!email) {
+            return res.status(400).json({ message: "Email not provided by Google account" });
+        }
+
+        let user = await User.findOne({ email: email });
+
+        if (!user) {
+            const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
+            const passwordHash = bcrypt.hashSync(randomPassword, 10);
+
+            user = new User({
+                email: email,
+                firstName: googleUser.given_name || googleUser.name || "Google",
+                lastName: googleUser.family_name || "User",
+                password: passwordHash,
+                image: googleUser.picture || "/default-profile.png",
+                isEmailVerified: true
+            });
+            await user.save();
+        }
+
+        if (user.isBlocked) {
+            return res.status(403).json({ message: "User account is blocked" });
+        }
+
+        const jwtToken = jwt.sign({
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            isAdmin: user.isAdmin,
+            isBlocked: user.isBlocked,
+            isEmailVerified: user.isEmailVerified,
+            image: user.image
+        }, process.env.JWT_SECRET_KEY);
+
+        return res.json({
+            message: "Google login successful",
+            token: jwtToken,
+            isAdmin: user.isAdmin
+        });
+    } catch (error) {
+        console.error("Google login error:", error);
+        return res.status(500).json({ message: error.message || "Server error during Google login" });
     }
 }
