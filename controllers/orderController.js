@@ -26,17 +26,20 @@ export async function createOrder(req, res) {
             totalAmount: 0
         }
 
-        const lastOrder = await Order.findOne().sort({ date: -1 })
+        const lastOrder = await Order.findOne().sort({ orderId: -1 })
 
-        if (lastOrder != null) {
-            const lastOrderId = lastOrder.orderId
-            const lastOrderNumberInString = lastOrderId.replace("ORD", "")
-            const lastOrderNumber = parseInt(lastOrderNumberInString) || 0
-
-            const newOrderNumber = lastOrderNumber + 1
-            const newOrderNumberInString = newOrderNumber.toString().padStart(6, "0")
-            orderData.orderId = "ORD" + newOrderNumberInString
+        let nextOrderNum = 1
+        if (lastOrder != null && lastOrder.orderId) {
+            const lastOrderNumberInString = lastOrder.orderId.replace("ORD", "")
+            nextOrderNum = (parseInt(lastOrderNumberInString) || 0) + 1
         }
+
+        let newOrderId = "ORD" + nextOrderNum.toString().padStart(6, "0")
+        while (await Order.exists({ orderId: newOrderId })) {
+            nextOrderNum++
+            newOrderId = "ORD" + nextOrderNum.toString().padStart(6, "0")
+        }
+        orderData.orderId = newOrderId
 
         for (let i = 0; i < req.body.items.length; i++) {
             const product = await Product.findOne({ productId: req.body.items[i].productId })
@@ -75,6 +78,37 @@ export async function createOrder(req, res) {
 
     } catch (err) {
         res.status(500).json({ message: err.message })
+    }
+}
+
+export async function getMyOrders(req, res) {
+    if (req.user == null) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+    }
+
+    try {
+        const pageSizeInString = req.params.pageSize || "10";
+        const pageNumberInString = req.params.pageNumber || "1";
+        const pageSize = parseInt(pageSizeInString);
+        const pageNumber = parseInt(pageNumberInString);
+
+        const orderCount = await Order.countDocuments({ email: req.user.email });
+        const totalPages = Math.ceil(orderCount / pageSize);
+
+        const orders = await Order.find({ email: req.user.email })
+            .sort({ date: -1 })
+            .skip((pageNumber - 1) * pageSize)
+            .limit(pageSize);
+
+        res.json({
+            orders: orders,
+            totalPages: totalPages,
+            currentPage: pageNumber,
+            totalOrders: orderCount
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 }
 
@@ -137,7 +171,6 @@ export async function getAllOrders(req,res){
     }catch(err){
         res.json({message : err.message})
     }
-
 }
 
 export async function updateOrderStatus(req,res){
