@@ -115,3 +115,27 @@ export async function getProductById(req, res) {
         res.status(500).json({ message: error.message });
     }   
 }
+
+export async function searchProducts(req,res){
+
+    try{
+
+        const query = req.params.query
+
+        const products = await Product.find(
+            {
+                $or :[
+                    {name : {$regex : query , $options : "i"}},
+                    {description : {$regex : query , $options : "i"}},
+                    {altNames : {$elemMatch : {$regex : query , $options : "i"}}}
+                ],
+                isAvailable : true    
+            }
+        )
+
+        res.json(products)
+
+    }catch(err){
+        res.status(500).json({message : err.message})
+    }
+}

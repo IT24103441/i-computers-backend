@@ -276,3 +276,150 @@ export async function sendOTP(req,res){
         res.status(500).json({message : err.message})
     }
 }
+
+export async function verifyOTP(req,res){
+
+    try{
+
+        const email = req.body.email
+        const otp = req.body.otp
+        const password = req.body.password
+
+        const otpRecord = await OTP.findOne( {email : email} )
+
+        if(otpRecord == null){
+            res.status(404).json({message : "OTP not found"})
+            return
+        }
+
+        //check if otp time passed 10 minutes
+
+        const currentTime = new Date()
+        const otpTime = new Date(otpRecord.time)
+
+        const timeDiff = (currentTime - otpTime) / (1000 * 60) // time difference in minutes
+
+        if(timeDiff > 10){
+            res.status(400).json({message : "OTP has expired"})
+            return
+        }
+
+        const isOTPValid = bcrypt.compareSync(otp , otpRecord.otp)
+
+        if(!isOTPValid){
+            res.status(400).json({message : "Invalid OTP"})
+            return
+        }
+
+        const passwordHash = bcrypt.hashSync(password, 10)
+
+        await User.updateOne( {email : email} , {password : passwordHash} )
+
+        await OTP.deleteOne( {email : email} )
+
+        res.json({message : "Password updated successfully"})
+
+    }catch(err){
+        res.status(500).json({message : err.message})
+    }
+
+}
+
+export async function getAllUsers(req,res){
+
+    if(req.user == null || req.user.isAdmin == false){
+        res.status(401).json({message : "Unauthorized"})
+        return
+    }
+
+    try{
+
+            const pageSizeInString = req.params.pageSize||"10"
+
+            const pageNumberInString = req.params.pageNumber||"1"
+
+            const pageSize = parseInt(pageSizeInString) //10
+
+            const pageNumber = parseInt(pageNumberInString) //1
+
+            const userCount = await User.countDocuments()
+
+            const totalPages = Math.ceil(userCount / pageSize)
+
+            const users = await User.find().skip((pageNumber-1)*pageSize).limit(pageSize)
+
+            res.json({
+                users : users,
+                totalPages : totalPages,
+                totalUsers : userCount
+            })
+        
+    }catch(err){
+        res.status(500).json({message : err.message})
+    }
+}
+
+export async function switchRole(req,res){
+
+    if(req.user == null || req.user.isAdmin == false){
+        res.status(401).json({message : "Unauthorized"})
+        return
+    }
+
+    try{
+
+        const email = req.params.email
+
+        const user = await User.findOne( {email : email} )
+
+        if(user == null){
+            res.status(404).json({message : "User not found"})
+            return
+        }
+
+        if(user.email == req.user.email){
+            res.status(400).json({message : "You cannot change your own role"})
+            return
+        }
+
+        await User.updateOne( {email : email} , {isAdmin : !user.isAdmin} )
+
+        res.json({message : "User role updated successfully"})
+
+    }catch(err){
+        res.status(500).json({message : err.message})
+    }
+
+}
+
+export async function updateUserState(req,res){
+
+    if(req.user == null || req.user.isAdmin == false){
+        res.status(401).json({message : "Unauthorized"})
+        return
+    }
+
+    try{
+
+        const email = req.params.email
+
+        const user = await User.findOne( {email : email} )
+
+        if(user == null){
+            res.status(404).json({message : "User not found"})
+            return
+        }
+
+        if(user.email == req.user.email){
+            res.status(400).json({message : "You cannot change your own block state"})
+            return
+        }
+
+        await User.updateOne( {email : email} , {isBlocked : !user.isBlocked} )
+
+        res.json({message : "User state updated successfully"})
+
+    }catch(err){
+        res.status(500).json({message : err.message})
+    }
+}
