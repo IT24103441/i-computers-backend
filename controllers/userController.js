@@ -3,8 +3,22 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv'
 import axios from "axios"
+import OTP from '../model/otp.js';
+import nodemailer from 'nodemailer';
 
 dotenv.config()
+
+
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL,
+        pass: process.env.APP_PASSWORD
+    }
+})
 
 export async function createUser(req, res) {
     try {
@@ -209,5 +223,56 @@ export async function googleLogin(req, res) {
     } catch (error) {
         console.error("Google login error:", error);
         return res.status(500).json({ message: error.message || "Server error during Google login" });
+    }
+}
+
+export async function sendOTP(req,res){
+    try{
+        
+        const email = req.body.email
+
+        const user = await User.findOne( {email : email} )
+
+        if(user == null){
+            res.status(404).json({message : "User not found"})
+            return
+        }
+
+        if(user.isBlocked){
+            res.status(403).json({message : "User is blocked"})
+            return
+        }
+
+        await OTP.deleteOne( {email : email} )
+
+        // otp between 100000 and 999999
+        const otpNumber = Math.floor(100000 + Math.random() * 900000)
+
+        //save otp in the database
+
+        const otpHash = bcrypt.hashSync(otpNumber.toString(), 10)
+
+        const newOTP = new OTP({
+            email : email,
+            otp : otpHash
+        })
+
+        await newOTP.save()
+
+        //send otp to the user email
+        const message = {
+            from : process.env.EMAIL,
+            to : email,
+            subject : "OTP for password reset",
+            text : `Your OTP for password reset is ${otpNumber}. It is valid for 10 minutes.`
+        }
+
+        await transporter.sendMail(message)
+
+        res.json({message : "OTP sent successfully"})
+
+
+    }catch(err){
+        res.status(500).json({message : err.message})
     }
 }
