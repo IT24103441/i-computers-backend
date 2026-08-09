@@ -188,6 +188,11 @@ export async function updateOrderStatus(req,res){
             return
         }
 
+        if (order.status === "Cancelled") {
+            res.status(400).json({ message: "Cannot change status of a cancelled order." })
+            return
+        }
+
         await Order.updateOne(
             {orderId : req.params.orderId},
             {status : req.body.status}
@@ -195,6 +200,47 @@ export async function updateOrderStatus(req,res){
         res.json({message : "Order status updated successfully"})
 
     }catch(err){
-        res.json({message : err.message})
+        res.status(500).json({message : err.message})
     }
 }
+
+export async function cancelOrder(req, res) {
+    if (req.user == null) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+    }
+
+    try {
+        const orderId = req.params.orderId;
+        const order = await Order.findOne({ orderId: orderId });
+
+        if (order == null) {
+            res.status(404).json({ message: "Order not found" });
+            return;
+        }
+
+        // Check if user owns this order (or is admin)
+        if (!req.user.isAdmin && order.email !== req.user.email) {
+            res.status(403).json({ message: "You are not authorized to cancel this order." });
+            return;
+        }
+
+        // Only allow cancellation if order is Pending or Processing
+        if (order.status === "Shipped" || order.status === "Delivered") {
+            res.status(400).json({ message: "Cannot cancel order that has already been shipped or delivered." });
+            return;
+        }
+
+        if (order.status === "Cancelled") {
+            res.status(400).json({ message: "Order is already cancelled." });
+            return;
+        }
+
+        order.status = "Cancelled";
+        await order.save();
+
+        res.json({ message: "Order cancelled successfully.", order: order });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+}
