@@ -79,6 +79,10 @@ const orderSchema = new mongoose.Schema(
         totalAmount : {
             type : Number,
             required : true
+        },
+        isDeletedByUser : {
+            type : Boolean,
+            default : false
         }
     }
 )

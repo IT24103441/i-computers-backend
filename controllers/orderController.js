@@ -93,10 +93,10 @@ export async function getMyOrders(req, res) {
         const pageSize = parseInt(pageSizeInString);
         const pageNumber = parseInt(pageNumberInString);
 
-        const orderCount = await Order.countDocuments({ email: req.user.email });
+        const orderCount = await Order.countDocuments({ email: req.user.email, isDeletedByUser: { $ne: true } });
         const totalPages = Math.ceil(orderCount / pageSize);
 
-        const orders = await Order.find({ email: req.user.email })
+        const orders = await Order.find({ email: req.user.email, isDeletedByUser: { $ne: true } })
             .sort({ date: -1 })
             .skip((pageNumber - 1) * pageSize)
             .limit(pageSize);
@@ -153,11 +153,11 @@ export async function getAllOrders(req,res){
 
             const pageNumber = parseInt(pageNumberInString) //1
 
-            const orderCount = await Order.countDocuments({email : req.user.email})
+            const orderCount = await Order.countDocuments({email : req.user.email, isDeletedByUser: { $ne: true }})
 
             const totalPages = Math.ceil(orderCount / pageSize)
 
-            const orders = await Order.find({email : req.user.email}).sort({date : -1}).skip((pageNumber-1)*pageSize).limit(pageSize)
+            const orders = await Order.find({email : req.user.email, isDeletedByUser: { $ne: true }}).sort({date : -1}).skip((pageNumber-1)*pageSize).limit(pageSize)
 
             res.json({
                 orders : orders,
@@ -240,6 +240,46 @@ export async function cancelOrder(req, res) {
         await order.save();
 
         res.json({ message: "Order cancelled successfully.", order: order });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+}
+
+export async function deleteOrder(req, res) {
+    if (req.user == null) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+    }
+
+    try {
+        const orderId = req.params.orderId;
+        const order = await Order.findOne({ orderId: orderId });
+
+        if (order == null) {
+            res.status(404).json({ message: "Order not found" });
+            return;
+        }
+
+        // Check if user owns this order or is admin
+        if (!req.user.isAdmin && order.email !== req.user.email) {
+            res.status(403).json({ message: "You are not authorized to delete this order." });
+            return;
+        }
+
+        // Only allow non-admins to delete cancelled orders
+        if (!req.user.isAdmin && order.status !== "Cancelled") {
+            res.status(400).json({ message: "Only cancelled orders can be deleted by customers." });
+            return;
+        }
+
+        if (req.user.isAdmin) {
+            await Order.deleteOne({ orderId: orderId });
+            res.json({ message: "Order permanently deleted by admin." });
+        } else {
+            order.isDeletedByUser = true;
+            await order.save();
+            res.json({ message: "Order removed from your order history." });
+        }
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
